@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import sys
+
+# Avoid broken /usr/local pyOpenSSL shadowing distro docker-compose deps.
+sys.path = [p for p in sys.path if not p.startswith("/usr/local/lib/python3.8/dist-packages")]
+if "/usr/lib/python3/dist-packages" not in sys.path:
+    sys.path.insert(0, "/usr/lib/python3/dist-packages")
+
+from compose.cli.main import main  # type: ignore
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

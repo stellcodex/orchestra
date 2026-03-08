@@ -1,0 +1,36 @@
+model_list:
+  - model_name: gemini_conductor
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: codex_executor
+    litellm_params:
+      model: openai/codex-mini-latest
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: claude_reviewer
+    litellm_params:
+      model: anthropic/claude-3-7-sonnet-20250219
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: abacus_analyst
+    litellm_params:
+      model: openai/gpt-4.1-mini
+      api_base: https://api.abacus.ai/v1
+      api_key: os.environ/ABACUSAI_API_KEY
+
+  - model_name: local_fast
+    litellm_params:
+      model: ollama/tinyllama
+      api_base: os.environ/OLLAMA_BASE_URL
+      api_key: none
+
+  - model_name: local_reason
+    litellm_params:
+      model: ollama/qwen2.5:0.5b
+      api_base: os.environ/OLLAMA_BASE_URL
+      api_key: none
+
+litellm_settings:
+  drop_params: true

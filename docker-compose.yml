@@ -1,0 +1,102 @@
+version: "3.3"
+
+services:
+  litellm:
+    build:
+      context: .
+      dockerfile: litellm.Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm.config.yaml:/app/config/litellm.config.yaml:ro
+    restart: always
+
+  orchestrator:
+    build:
+      context: ./orchestrator
+    env_file:
+      - .env
+    environment:
+      STATE_DIR: /app/state
+      WORKSPACE_ROOT: /workspace
+      STELL_PROMPT_MANIFEST_PATH: /workspace/audit/STELL_SYSTEM_CORE/ACTIVE_PROMPT_MANIFEST.json
+      ORCHESTRATOR_PROMPTS_PATH: /workspace/audit/STELL_SYSTEM_CORE/05_workers/root/workspace/ops/orchestra/orchestrator/prompt_templates.json
+      ORCHESTRATOR_REQUIRE_EXTERNAL_PROMPTS: "1"
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://litellm:4000/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-dummy}
+      ENABLE_OLLAMA: ${ENABLE_OLLAMA:-0}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      HTTP_TIMEOUT_SECONDS: ${HTTP_TIMEOUT_SECONDS:-120}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-700}
+      LOCAL_MAX_TOKENS: ${LOCAL_MAX_TOKENS:-220}
+      PAID_CALL_TIMEOUT_SECONDS: ${PAID_CALL_TIMEOUT_SECONDS:-45}
+      LOCAL_CALL_TIMEOUT_SECONDS: ${LOCAL_CALL_TIMEOUT_SECONDS:-20}
+      SCHEDULER_INTERVAL_SECONDS: ${SCHEDULER_INTERVAL_SECONDS:-60}
+    ports:
+      - "7010:7010"
+    volumes:
+      - ./state:/app/state
+      - ../..:/workspace:ro
+    depends_on:
+      - litellm
+    restart: always
+
+  autopilot:
+    build:
+      context: ../autopilot
+    env_file:
+      - .env
+    environment:
+      ORCHESTRA_URL: http://orchestrator:7010
+      JOBS_ROOT: /jobs
+      WORKSPACE_ROOT: /workspace
+      LOOP_SLEEP_SECONDS: ${AUTOPILOT_LOOP_SECONDS:-5}
+      MAX_RETRIES: ${AUTOPILOT_MAX_RETRIES:-5}
+      DEFER_RETRY_SECONDS: ${AUTOPILOT_DEFER_RETRY_SECONDS:-900}
+      SCAN_INTERVAL_SECONDS: ${AUTOPILOT_SCAN_INTERVAL_SECONDS:-600}
+      DAILY_REPORT_HOUR: ${DAILY_REPORT_HOUR:-9}
+      TZ: ${TZ:-Europe/Istanbul}
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_TO: ${WHATSAPP_TO:-}
+    depends_on:
+      - orchestrator
+    volumes:
+      - ../../_jobs:/jobs
+      - ../..:/workspace:ro
+    restart: always
+
+  stellai:
+    build:
+      context: ../stellai
+    environment:
+      ORCHESTRA_STATE_URL: http://orchestrator:7010/state
+      JOBS_ROOT: /jobs
+      EVENTS_PATH: /jobs/logs/events.jsonl
+      TZ: ${TZ:-Europe/Istanbul}
+    depends_on:
+      - orchestrator
+    ports:
+      - "7020:7020"
+    volumes:
+      - ../../_jobs:/jobs
+    restart: always
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    container_name: orchestra_ollama
+    command: ["serve"]
+    expose:
+      - "11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      default:
+        aliases:
+          - orchestra_ollama
+    restart: always
+
+volumes:
+  ollama_data:
