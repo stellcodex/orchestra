@@ -13,12 +13,12 @@ Canonical owner for STELLCODEX execution and state authority.
 ## Canonical runtime
 
 - authoritative HTTP runtime: `runtime_app/`
-- canonical image entrypoint: [`Dockerfile`](/root/workspace/_canonical_repos/orchestra/Dockerfile)
+- canonical image entrypoint: `Dockerfile`
 
 This runtime is the proven split service used by backend proxy calls.
 
 ## Repository notes
 
-- `runtime_app/` is the canonical STELLCODEX integration runtime
-- `orchestrator/`, `src/`, `litellm*`, and helper scripts remain Orchestra-owned historical/support material
+- `runtime_app/` is the only active service runtime in this repo
+- historical sidecars, helper scripts, and alternate runtime trees were removed during canonical lock
 - this repo is no longer a boundary-only placeholder
