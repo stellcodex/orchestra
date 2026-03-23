@@ -9,10 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: verify-required-roots
+      - name: verify-canonical-orchestra-layout
         run: |
           set -euo pipefail
-          for d in src docs deploy scripts tests; do
+          for d in docs runtime_app; do
             test -d "$d" || { echo "missing:$d"; exit 1; }
           done
-          echo "PASS boundary layout"
+          test -f Dockerfile || { echo "missing:Dockerfile"; exit 1; }
+          test -f requirements.txt || { echo "missing:requirements.txt"; exit 1; }
+          echo "PASS canonical Orchestra boundary layout"

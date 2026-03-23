@@ -1,4 +1,6 @@
 .env
+__pycache__/
+*.pyc
 state/routing_events.jsonl
 state/deferred_queue.json
 state/quota_state.json
