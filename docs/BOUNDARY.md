@@ -1,5 +1,7 @@
 # ORCHESTRA Boundary
 
-Ownership: queue layer, worker registry, execution pipelines, ingestion/embed/eval jobs, retry/DLQ, cache and scale-out runtime.
+Ownership: execution authority, workflow/state transitions, required-input/approval gating, retries, evidence lifecycle, and execution-side integration with STELL.AI.
 
-No product-level ownership and no STELL.AI memory ownership.
+Canonical runtime: `runtime_app/`
+
+Forbidden: product routing/UI ownership, auth/session ownership, strategic intelligence authority, and permanent archive ownership outside defined job exports.
