@@ -1,24 +1,39 @@
 # ORCHESTRA
 
-Canonical owner for STELLCODEX execution and state authority.
+Execution and state authority for STELLCODEX.
+
+## Role in System
+
+ORCHESTRA is responsible for executing workflows and managing state transitions.
+
+It handles:
+- job execution
+- workflow progression
+- state management
+- task orchestration
+
+## System Position
+
+- STELLCODEX → product/workflow surface  
+- STELL.AI → intelligence authority  
+- ORCHESTRA → execution authority  
+- INFRA → runtime infrastructure  
 
 ## Responsibility
 
-- workflow state machine
-- required-input gating
-- approval gating
-- execution/session persistence through backend internal runtime APIs
-- execution-side integration with STELL.AI decision authority
+- execute decisions produced by STELL.AI  
+- maintain deterministic workflow state  
+- ensure idempotent operations  
 
-## Canonical runtime
+## Rules
 
-- authoritative HTTP runtime: `runtime_app/`
-- canonical image entrypoint: `Dockerfile`
+- do not implement intelligence here  
+- do not bypass STELL.AI decisions  
+- do not move infrastructure logic here  
 
-This runtime is the proven split service used by backend proxy calls.
+## Related
 
-## Repository notes
-
-- `runtime_app/` is the only active service runtime in this repo
-- historical sidecars, helper scripts, and alternate runtime trees were removed during canonical lock
-- this repo is no longer a boundary-only placeholder
+- `stellcodex/stellcodex`
+- `stellcodex/stell-ai`
+- `stellcodex/infra`
+- `stellcodex/stell-assistant`
