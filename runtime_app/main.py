@@ -47,6 +47,7 @@ class SessionActionIn(BaseModel):
 class ApprovalIn(BaseModel):
     session_id: str
     reason: str | None = Field(default=None, max_length=500)
+    initiated_by: str | None = Field(default=None, max_length=128)
 
 
 def _public_file_id(value: str) -> str:
@@ -196,6 +197,14 @@ def _apply_state(session: dict[str, Any], state: str, decision_json: dict[str, A
 
 
 def _transition_path(current: str, target: str) -> list[str]:
+    raw_current = str(current or "").strip().upper()
+    raw_target = str(target or "").strip().upper()
+    # Reject unrecognized state codes explicitly; do not silently normalize to S0
+    # so that corrupted or unknown session state is surfaced rather than hidden.
+    if raw_current and raw_current not in STATE_ORDER:
+        raise HTTPException(status_code=409, detail=f"invalid_current_state:{raw_current}")
+    if raw_target and raw_target not in STATE_ORDER:
+        raise HTTPException(status_code=409, detail=f"invalid_target_state:{raw_target}")
     current_code = _normalize_state_code(current)
     target_code = _normalize_state_code(target)
     if current_code == target_code:
@@ -303,6 +312,28 @@ def _sync_session(file_row: dict[str, Any]) -> dict[str, Any]:
     return _persist_session(file_row, session)
 
 
+def _validate_input_value(key: str, value: Any) -> None:
+    """Enforce type contracts for known required-input keys.
+
+    Only validates keys with a defined type contract; unknown keys pass through
+    so that future inputs added to _required_inputs do not silently break here.
+    Raises 422 on type mismatch so callers get a clear rejection rather than
+    silently storing a value that will never satisfy the completion check.
+    """
+    if key == "geometry_confirmation":
+        if not isinstance(value, bool):
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "invalid_input_type", "key": key, "message": "geometry_confirmation must be a boolean"},
+            )
+    elif key == "manufacturing_intent":
+        if not isinstance(value, str) or not str(value).strip():
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "invalid_input_type", "key": key, "message": "manufacturing_intent must be a non-empty string"},
+            )
+
+
 def _required_inputs_payload(file_row: dict[str, Any], session: dict[str, Any]) -> dict[str, Any]:
     decision_json = session.get("decision_json") if isinstance(session.get("decision_json"), dict) else {}
     required = _required_inputs(session, file_row, decision_json)
@@ -338,7 +369,10 @@ def get_decision(file_id: str | None = None, session_id: str | None = None):
         raise HTTPException(status_code=400, detail="file_id or session_id is required")
     if session_id:
         session = get_session_by_id(session_id)
-        file_row = get_file_context(str(session.get("file_id") or ""), include_assembly_tree=False)
+        fid = str(session.get("file_id") or "").strip()
+        if not fid:
+            raise HTTPException(status_code=422, detail="session has no associated file_id")
+        file_row = get_file_context(fid, include_assembly_tree=False)
     else:
         file_row = get_file_context(str(file_id), include_assembly_tree=False)
     session = _sync_session(file_row)
@@ -364,6 +398,7 @@ def submit_input(data: SessionInputIn):
             status_code=409,
             detail={"code": "input_not_required", "message": "The input key is not required for the current session state."},
         )
+    _validate_input_value(data.key, data.value)
     submitted = _set_submitted_input(session, data.key, data.value)
     session = _persist_session(file_row, session)
     session = _sync_session(file_row)
@@ -424,9 +459,13 @@ def approve(data: ApprovalIn):
     decision_json = session.get("decision_json") if isinstance(session.get("decision_json"), dict) else {}
     _walk_to_state(session, "S6", decision_json, _dfm_findings(file_row))
     reason = str(data.reason or "").strip() or None
-    if reason:
+    initiator = str(data.initiated_by or "").strip() or None
+    if reason or initiator:
         submitted = _submitted_inputs(session)
-        submitted["approval_reason"] = reason
+        if reason:
+            submitted["approval_reason"] = reason
+        if initiator:
+            submitted["approval_initiator"] = initiator
         session["notes"] = json.dumps({"submitted_inputs": submitted}, ensure_ascii=True, sort_keys=True)
     session = _persist_session(file_row, session)
     return {
@@ -436,4 +475,5 @@ def approve(data: ApprovalIn):
         "state_label": session.get("state_label") or _state_label(str(session.get("state") or "S0")),
         "approved": True,
         "reason": reason,
+        "initiated_by": initiator,
     }
